@@ -1,16 +1,15 @@
 #pragma once
 
+#include <Windows.h>
+
 #include "AudioInterfaces.h"
 
-#include <Mmdeviceapi.h>
-#include <Audioclient.h>
 
-
-class AudioDevice : public IAudioIn, public IAudioOut
+class FileHandler : public IAudioIn, public IAudioOut
 {
 public:
-	AudioDevice();
-	~AudioDevice();
+	FileHandler(LPCTSTR sFilename);
+	~FileHandler();
 
 	virtual HRESULT openForCapture();
 	virtual HRESULT getAudioFormat(WAVEFORMATEXTENSIBLE* pFormat);
@@ -25,13 +24,9 @@ public:
 	virtual HRESULT stopPlayback();
 
 private:
-	HRESULT openAudioDevice();
-
-	const REFERENCE_TIME c_hnsBufferLength  = 1000 * 1000 * 10; // 1000 ms
-
-	IAudioClient* m_pAudioClient;
-	IAudioCaptureClient *m_pCaptureClient;
-
 	WAVEFORMATEXTENSIBLE m_audioFormat;
+
+	LPCTSTR m_sFilename;
+	HANDLE m_hFile;
 };
 

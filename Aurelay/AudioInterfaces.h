@@ -1,8 +1,8 @@
+#pragma once
+
 #include <Windows.h>
 #include <mmreg.h>
 
-#ifndef __AUDIOINTERFACES__
-#define __AUDIOINTERFACES__
 
 class IAudioOut
 {
@@ -24,5 +24,3 @@ public:
 	virtual HRESULT getAudio(IAudioOut* pOut) = 0;
 	virtual HRESULT stopCapture() = 0;
 };
-
-#endif

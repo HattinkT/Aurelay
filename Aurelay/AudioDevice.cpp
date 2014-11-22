@@ -10,7 +10,6 @@ AudioDevice::AudioDevice()
 	m_pCaptureClient = NULL;
 }
 
-
 AudioDevice::~AudioDevice()
 {
 	if (m_pCaptureClient != NULL)
@@ -34,7 +33,7 @@ HRESULT AudioDevice::openForCapture()
 	if (m_pCaptureClient != NULL)
 	{
 		printf("Failed to open for capture: already opened\n");
-		return S_FALSE;
+		return E_FAIL;
 	}
 
 	hr = openAudioDevice();
@@ -106,7 +105,7 @@ HRESULT AudioDevice::getAudioFormat(WAVEFORMATEXTENSIBLE* pFormat)
 {
 	if (m_pCaptureClient == NULL)
 	{
-		return S_FALSE;
+		return E_FAIL;
 	}
 
 	*pFormat = m_audioFormat;
@@ -120,7 +119,7 @@ HRESULT AudioDevice::startCapture()
 
 	if (m_pCaptureClient == NULL)
 	{
-		return S_FALSE;
+		return E_FAIL;
 	}
 
 	hr = m_pAudioClient->Start();
@@ -143,7 +142,7 @@ HRESULT AudioDevice::getAudio(IAudioOut* pOut)
 
 	if (m_pCaptureClient == NULL)
 	{
-		return S_FALSE;
+		return E_FAIL;
 	}
 
 	hr = m_pCaptureClient->GetNextPacketSize(&numFramesAvailable);
@@ -191,11 +190,6 @@ HRESULT AudioDevice::stopCapture()
 	if (m_pAudioClient != NULL)
 	{
 		hr = m_pAudioClient->Stop();
-
-		if (hr != S_OK)
-		{
-			printf("Failed to stop capturing, 0x%08x\n", hr);
-		}
 	}
 
 	if (m_pCaptureClient != NULL)
