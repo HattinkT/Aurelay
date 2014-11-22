@@ -16,7 +16,16 @@ App::~App()
 
 int App::Run(int argc, _TCHAR* argv[])
 {
+	HRESULT hr;
+
 	printf("Starting Aurelay\n");
 
-	return m_AudioDev.openAudioCaptureDevice();
+	hr = m_AudioDev.openAudioDevice();
+
+	if (hr == S_OK)
+	{
+		hr = m_AudioDev.captureAudio();
+	}
+
+	return 0;
 }
