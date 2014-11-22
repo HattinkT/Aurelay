@@ -18,21 +18,42 @@ int App::Run(int argc, _TCHAR* argv[])
 {
 	HRESULT hr;
 
+	AudioDevice* pAudioDev;
+
+	WAVEFORMATEXTENSIBLE audioFormat;
+
 	printf("Starting Aurelay\n");
 
-	hr = m_AudioDev.openForCapture();
+	pAudioDev = new AudioDevice();
 
+	hr = pAudioDev->openForCapture();
+	
 	if (hr == S_OK)
 	{
-		hr = m_AudioDev.startCapture();
+		hr = pAudioDev->getAudioFormat(&audioFormat);
+
+		printf("Starting capture:\n");
+		printf("  Number of channels:%d\n", audioFormat.Format.nChannels);
+		printf("  Channel mask:0x%08x\n", audioFormat.dwChannelMask);
+		printf("  Sample rate:%d\n", audioFormat.Format.nSamplesPerSec);
+		printf("  Sample bitsize:%d (of %d)\n", audioFormat.Samples.wValidBitsPerSample, audioFormat.Format.wBitsPerSample);
+		printf("  Average bytes per sec:%d\n", audioFormat.Format.nAvgBytesPerSec);
+		printf("  Block size:%d\n", audioFormat.Format.nBlockAlign);
+		printf("  Samples per block:%d\n", audioFormat.Samples.wSamplesPerBlock);
+
+		hr = pAudioDev->startCapture();
 	}
 
 	while (hr == S_OK)
 	{
-		hr = m_AudioDev.getAudio(NULL);
+		hr = pAudioDev->getAudio(NULL);
 
 		Sleep(c_msPollingLength);
 	}
+
+	hr = pAudioDev->stopCapture();
+
+	delete pAudioDev;
 
 	return 0;
 }

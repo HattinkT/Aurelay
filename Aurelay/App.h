@@ -13,7 +13,5 @@ public:
 
 private:
 	const DWORD c_msPollingLength = 5; // 5 ms
-
-	AudioDevice m_AudioDev;
 };
 

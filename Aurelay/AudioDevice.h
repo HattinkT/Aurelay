@@ -5,6 +5,7 @@
 #include <Mmdeviceapi.h>
 #include <Audioclient.h>
 
+
 class AudioDevice : public IAudioIn, IAudioOut
 {
 public:
@@ -12,14 +13,16 @@ public:
 	~AudioDevice();
 
 	virtual HRESULT openForCapture();
+	virtual HRESULT getAudioFormat(WAVEFORMATEXTENSIBLE* pFormat);
 	virtual HRESULT startCapture();
-	virtual HRESULT stopCapture();
 	virtual HRESULT getAudio(IAudioOut* pOut);
+	virtual HRESULT stopCapture();
 
 	virtual HRESULT openForPlayback();
+	virtual HRESULT putAudioFormat(const WAVEFORMATEXTENSIBLE* pFormat);
 	virtual HRESULT startPlayback();
+	virtual HRESULT putAudio(const BYTE* pData, UINT32 numBytes);
 	virtual HRESULT stopPlayback();
-	virtual HRESULT putAudio();
 
 private:
 	HRESULT openAudioDevice();
@@ -28,5 +31,7 @@ private:
 
 	IAudioClient* m_pAudioClient;
 	IAudioCaptureClient *m_pCaptureClient;
+
+	WAVEFORMATEXTENSIBLE m_audioFormat;
 };
 
