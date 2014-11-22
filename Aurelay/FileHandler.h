@@ -8,7 +8,7 @@
 class FileHandler : public IAudioIn, public IAudioOut
 {
 public:
-	FileHandler(LPCTSTR sFilename);
+	FileHandler(LPCTSTR sFilename, UINT32 msLatency);
 	~FileHandler();
 
 	virtual HRESULT openForCapture();
@@ -24,9 +24,10 @@ public:
 	virtual HRESULT stopPlayback();
 
 private:
-	WAVEFORMATEXTENSIBLE m_audioFormat;
-
+	UINT32 m_msLatency;
 	LPCTSTR m_sFilename;
 	HANDLE m_hFile;
+	BYTE *m_bBuffer;
+	DWORD m_dwBufferSize;
 };
 

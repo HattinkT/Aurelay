@@ -26,11 +26,14 @@ public:
 
 private:
 	HRESULT openAudioDevice();
+	void closeAudioDevice();
 
 	const REFERENCE_TIME c_hnsBufferLength  = 1000 * 1000 * 10; // 1000 ms
 
 	IAudioClient* m_pAudioClient;
 	IAudioCaptureClient *m_pCaptureClient;
+	IAudioRenderClient *m_pRenderClient;
+	BOOL m_isPlaying;
 
 	WAVEFORMATEXTENSIBLE m_audioFormat;
 };

@@ -8,19 +8,13 @@ AudioDevice::AudioDevice()
 {
 	m_pAudioClient = NULL;
 	m_pCaptureClient = NULL;
+	m_pRenderClient = NULL;
+	m_isPlaying = false;
 }
 
 AudioDevice::~AudioDevice()
 {
-	if (m_pCaptureClient != NULL)
-	{
-		m_pCaptureClient->Release();
-	}
-
-	if (m_pAudioClient != NULL)
-	{
-		m_pAudioClient->Release();
-	}
+	closeAudioDevice();
 }
 
 HRESULT AudioDevice::openForCapture()
@@ -128,6 +122,10 @@ HRESULT AudioDevice::startCapture()
 	{
 		printf("Failed to start capture: 0x%08x\n", hr);
 	}
+	else
+	{
+		m_isPlaying = true;
+	}
 
 	return hr;
 }
@@ -185,51 +183,128 @@ HRESULT AudioDevice::getAudio(IAudioOut* pOut)
 
 HRESULT AudioDevice::stopCapture()
 {
+	closeAudioDevice();
+
+	return S_OK;
+}
+
+HRESULT AudioDevice::openForPlayback()
+{
 	HRESULT hr;
 
-	if (m_pAudioClient != NULL)
+	hr = openAudioDevice();
+
+	return hr;
+}
+
+HRESULT AudioDevice::putAudioFormat(const WAVEFORMATEXTENSIBLE* pFormat)
+{
+	if (m_pAudioClient == NULL)
 	{
-		hr = m_pAudioClient->Stop();
+		return E_FAIL;
 	}
 
-	if (m_pCaptureClient != NULL)
+	m_audioFormat = *pFormat;
+
+	return S_OK;
+}
+
+HRESULT AudioDevice::startPlayback()
+{
+	HRESULT hr;
+
+	UINT32 bufferFrameCount;
+
+	if (m_pAudioClient == NULL)
 	{
-		m_pCaptureClient->Release();
-		m_pCaptureClient = NULL;
+		return E_FAIL;
 	}
 
-	if (m_pAudioClient != NULL)
+	hr = m_pAudioClient->Initialize(
+		AUDCLNT_SHAREMODE_SHARED,
+		0,
+		c_hnsBufferLength,
+		0,
+		(WAVEFORMATEX*)&m_audioFormat,
+		NULL);
+
+	if (hr != S_OK)
+	{
+		printf("Failed to start playback: cannot initialize, 0x%08x\n", hr);
+	}
+	else
+	{
+		hr = m_pAudioClient->GetBufferSize(&bufferFrameCount);
+
+		if (hr != S_OK)
+		{
+			printf("Failed to start playback: cannot get buffer size, 0x%08x\n", hr);
+		}
+		else
+		{
+			printf("Allocated playback buffer size in samples:%d\n", bufferFrameCount);
+
+			hr = m_pAudioClient->GetService(__uuidof(IAudioRenderClient), (void**)&m_pRenderClient);
+
+			if (hr != S_OK)
+			{
+				printf("Failed to start playback: cannot open playback client, 0x%08x\n", hr);
+			}
+		}
+	}
+
+	if (hr != S_OK)
 	{
 		m_pAudioClient->Release();
 		m_pAudioClient = NULL;
 	}
 
+	m_isPlaying = false;
+
 	return hr;
-}
-
-HRESULT AudioDevice::openForPlayback()
-{
-	return E_NOTIMPL;
-}
-
-HRESULT AudioDevice::putAudioFormat(const WAVEFORMATEXTENSIBLE* pFormat)
-{
-	return E_NOTIMPL;
-}
-
-HRESULT AudioDevice::startPlayback()
-{
-	return E_NOTIMPL;
 }
 
 HRESULT AudioDevice::putAudio(const BYTE* pData, UINT32 numBytes)
 {
-	return E_NOTIMPL;
+	HRESULT hr;
+
+	BYTE *pTargetBuffer;
+
+	if (m_pRenderClient == NULL)
+	{
+		return E_FAIL;
+	}
+
+	hr = m_pRenderClient->GetBuffer(numBytes / m_audioFormat.Format.nBlockAlign, &pTargetBuffer);
+
+	if (hr == S_OK)
+	{
+		memcpy(pTargetBuffer, pData, numBytes);
+
+		hr = m_pRenderClient->ReleaseBuffer(numBytes / m_audioFormat.Format.nBlockAlign, 0);
+
+		if (hr == S_OK)
+		{
+			printf("*");
+
+			if (!m_isPlaying)
+			{
+				hr = m_pAudioClient->Start();
+
+				if (hr == S_OK)
+				{
+					m_isPlaying = true;
+				}
+			}
+		}
+	}
+	return hr;
 }
 
 HRESULT AudioDevice::stopPlayback()
 {
-	return E_NOTIMPL;
+	closeAudioDevice();
+	return S_OK;
 }
 
 HRESULT AudioDevice::openAudioDevice()
@@ -300,4 +375,32 @@ HRESULT AudioDevice::openAudioDevice()
 	}
 
 	return hr;
+}
+
+void AudioDevice::closeAudioDevice()
+{
+	HRESULT hr;
+
+	if ((m_pAudioClient != NULL) && m_isPlaying)
+	{
+		hr = m_pAudioClient->Stop();
+	}
+
+	if (m_pCaptureClient != NULL)
+	{
+		m_pCaptureClient->Release();
+		m_pCaptureClient = NULL;
+	}
+
+	if (m_pRenderClient != NULL)
+	{
+		m_pRenderClient->Release();
+		m_pRenderClient = NULL;
+	}
+
+	if (m_pAudioClient != NULL)
+	{
+		m_pAudioClient->Release();
+		m_pAudioClient = NULL;
+	}
 }
