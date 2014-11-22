@@ -20,11 +20,18 @@ int App::Run(int argc, _TCHAR* argv[])
 
 	printf("Starting Aurelay\n");
 
-	hr = m_AudioDev.openAudioDevice();
+	hr = m_AudioDev.openForCapture();
 
 	if (hr == S_OK)
 	{
-		hr = m_AudioDev.captureAudio();
+		hr = m_AudioDev.startCapture();
+	}
+
+	while (hr == S_OK)
+	{
+		hr = m_AudioDev.getAudio(NULL);
+
+		Sleep(c_msPollingLength);
 	}
 
 	return 0;
