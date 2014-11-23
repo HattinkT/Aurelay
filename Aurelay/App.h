@@ -14,8 +14,11 @@ public:
 
 private:
 	const DWORD c_msPollingLength = 5; // ms
-	const DWORD c_msTransmitBuffersize = 100; // ms
+	const DWORD c_msTransferLatency = 25; // ms
 
-	int RunAsServer(USHORT port);
+	int RunAsServer(_TCHAR* port);
+	int RunAsClient(_TCHAR* port, _TCHAR* server);
+
+	void PrintWaveInfo(WAVEFORMATEXTENSIBLE* pWaveformat);
 };
 

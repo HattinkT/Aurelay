@@ -31,17 +31,16 @@ int App::Run(int argc, _TCHAR* argv[])
 	if (argc < 3)
 	{
 		// Server mode
-		RunAsServer(_ttoi(argv[1]));
+		return RunAsServer(argv[1]);
 	}
 	else
 	{
 		// Client mode
+		return RunAsClient(argv[1], argv[2]);
 	}
-
-	return 0;
 }
 
-int App::RunAsServer(USHORT port)
+int App::RunAsServer(_TCHAR* port)
 {
 	HRESULT hr;
 
@@ -50,12 +49,12 @@ int App::RunAsServer(USHORT port)
 
 	WAVEFORMATEXTENSIBLE audioFormat;
 
-	printf("Starting TCP server on port %d\n", port);
+	printf("Starting TCP server on port %S\n", port);
 
 	while (true)
 	{
 		pAudioDev = new AudioDevice();
-		pTcpTransport = new TcpTransport(port, c_msTransmitBuffersize);
+		pTcpTransport = new TcpTransport(NULL, port, c_msTransferLatency);
 
 		hr = pTcpTransport->openForPlayback();
 
@@ -66,31 +65,23 @@ int App::RunAsServer(USHORT port)
 			if (hr == S_OK)
 			{
 				hr = pAudioDev->getAudioFormat(&audioFormat);
-
+			}
+			if (hr == S_OK)
+			{
 				printf("Starting capture:\n");
-				printf("  Number of channels:%d\n", audioFormat.Format.nChannels);
-				printf("  Channel mask:0x%08x\n", audioFormat.dwChannelMask);
-				printf("  Sample rate:%d\n", audioFormat.Format.nSamplesPerSec);
-				printf("  Sample bitsize:%d (of %d)\n", audioFormat.Samples.wValidBitsPerSample, audioFormat.Format.wBitsPerSample);
-				printf("  Average bytes per sec:%d\n", audioFormat.Format.nAvgBytesPerSec);
-				printf("  Block size:%d\n", audioFormat.Format.nBlockAlign);
-				printf("  Samples per block:%d\n", audioFormat.Samples.wSamplesPerBlock);
-				printf("  Subformat:{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
-					audioFormat.SubFormat.Data1, audioFormat.SubFormat.Data2, audioFormat.SubFormat.Data3,
-					audioFormat.SubFormat.Data4[0], audioFormat.SubFormat.Data4[1], audioFormat.SubFormat.Data4[2], audioFormat.SubFormat.Data4[3],
-					audioFormat.SubFormat.Data4[4], audioFormat.SubFormat.Data4[5], audioFormat.SubFormat.Data4[6], audioFormat.SubFormat.Data4[7]);
+				PrintWaveInfo(&audioFormat);
 
 				hr = pTcpTransport->putAudioFormat(&audioFormat);
+			}
 
-				if (hr == S_OK)
-				{
-					hr = pTcpTransport->startPlayback();
-				}
+			if (hr == S_OK)
+			{
+				hr = pTcpTransport->startPlayback();
+			}
 
-				if (hr == S_OK)
-				{
-					hr = pAudioDev->startCapture();
-				}
+			if (hr == S_OK)
+			{
+				hr = pAudioDev->startCapture();
 			}
 
 			while (hr == S_OK)
@@ -102,6 +93,71 @@ int App::RunAsServer(USHORT port)
 
 			hr = pAudioDev->stopCapture();
 			hr = pTcpTransport->stopPlayback();
+		}
+
+		delete pAudioDev;
+		delete pTcpTransport;
+
+		Sleep(1000);
+	}
+
+	return 0;
+}
+
+int App::RunAsClient(_TCHAR* port, _TCHAR* server)
+{
+	HRESULT hr;
+
+	AudioDevice* pAudioDev;
+	TcpTransport* pTcpTransport;
+
+	WAVEFORMATEXTENSIBLE audioFormat;
+
+	while (true)
+	{
+		printf("Starting TCP client connecting to %S:%S\n", server, port);
+
+		pAudioDev = new AudioDevice();
+		pTcpTransport = new TcpTransport(server, port, c_msTransferLatency);
+
+		hr = pTcpTransport->openForCapture();
+
+		if (hr == S_OK)
+		{
+			hr = pAudioDev->openForPlayback();
+
+			if (hr == S_OK)
+			{
+				hr = pTcpTransport->getAudioFormat(&audioFormat);
+			}
+
+			if (hr == S_OK)
+			{
+				printf("Starting playback:\n");
+				PrintWaveInfo(&audioFormat);
+
+				hr = pAudioDev->putAudioFormat(&audioFormat);
+			}
+
+			if (hr == S_OK)
+			{
+				hr = pAudioDev->startPlayback();
+			}
+
+			if (hr == S_OK)
+			{
+				hr = pTcpTransport->startCapture();
+			}
+
+			while (hr == S_OK)
+			{
+				hr = pTcpTransport->getAudio(pAudioDev);
+
+				Sleep(c_msPollingLength);
+			}
+
+			hr = pTcpTransport->stopCapture();
+			hr = pAudioDev->stopPlayback();
 		}
 
 		delete pAudioDev;
@@ -140,17 +196,7 @@ int App::RunWithFile(int argc, _TCHAR* argv[])
 			hr = pAudioDev->getAudioFormat(&audioFormat);
 
 			printf("Starting capture:\n");
-			printf("  Number of channels:%d\n", audioFormat.Format.nChannels);
-			printf("  Channel mask:0x%08x\n", audioFormat.dwChannelMask);
-			printf("  Sample rate:%d\n", audioFormat.Format.nSamplesPerSec);
-			printf("  Sample bitsize:%d (of %d)\n", audioFormat.Samples.wValidBitsPerSample, audioFormat.Format.wBitsPerSample);
-			printf("  Average bytes per sec:%d\n", audioFormat.Format.nAvgBytesPerSec);
-			printf("  Block size:%d\n", audioFormat.Format.nBlockAlign);
-			printf("  Samples per block:%d\n", audioFormat.Samples.wSamplesPerBlock);
-			printf("  Subformat:{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
-				audioFormat.SubFormat.Data1, audioFormat.SubFormat.Data2, audioFormat.SubFormat.Data3,
-				audioFormat.SubFormat.Data4[0], audioFormat.SubFormat.Data4[1], audioFormat.SubFormat.Data4[2], audioFormat.SubFormat.Data4[3],
-				audioFormat.SubFormat.Data4[4], audioFormat.SubFormat.Data4[5], audioFormat.SubFormat.Data4[6], audioFormat.SubFormat.Data4[7]);
+			PrintWaveInfo(&audioFormat);
 
 			hr = pFileDev->putAudioFormat(&audioFormat);
 
@@ -188,17 +234,7 @@ int App::RunWithFile(int argc, _TCHAR* argv[])
 			hr = pFileDev->getAudioFormat(&audioFormat);
 
 			printf("Starting playback:\n");
-			printf("  Number of channels:%d\n", audioFormat.Format.nChannels);
-			printf("  Channel mask:0x%08x\n", audioFormat.dwChannelMask);
-			printf("  Sample rate:%d\n", audioFormat.Format.nSamplesPerSec);
-			printf("  Sample bitsize:%d (of %d)\n", audioFormat.Samples.wValidBitsPerSample, audioFormat.Format.wBitsPerSample);
-			printf("  Average bytes per sec:%d\n", audioFormat.Format.nAvgBytesPerSec);
-			printf("  Block size:%d\n", audioFormat.Format.nBlockAlign);
-			printf("  Samples per block:%d\n", audioFormat.Samples.wSamplesPerBlock);
-			printf("  Subformat:{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
-				audioFormat.SubFormat.Data1, audioFormat.SubFormat.Data2, audioFormat.SubFormat.Data3,
-				audioFormat.SubFormat.Data4[0], audioFormat.SubFormat.Data4[1], audioFormat.SubFormat.Data4[2], audioFormat.SubFormat.Data4[3],
-				audioFormat.SubFormat.Data4[4], audioFormat.SubFormat.Data4[5], audioFormat.SubFormat.Data4[6], audioFormat.SubFormat.Data4[7]);
+			PrintWaveInfo(&audioFormat);
 
 			hr = pAudioDev->putAudioFormat(&audioFormat);
 
@@ -229,4 +265,19 @@ int App::RunWithFile(int argc, _TCHAR* argv[])
 	delete pFileDev;
 
 	return 0;
+}
+
+void App::PrintWaveInfo(WAVEFORMATEXTENSIBLE* pWaveformat)
+{
+	printf("  Number of channels:%d\n", pWaveformat->Format.nChannels);
+	printf("  Channel mask:0x%08x\n", pWaveformat->dwChannelMask);
+	printf("  Sample rate:%d\n", pWaveformat->Format.nSamplesPerSec);
+	printf("  Sample bitsize:%d (of %d)\n", pWaveformat->Samples.wValidBitsPerSample, pWaveformat->Format.wBitsPerSample);
+	printf("  Average bytes per sec:%d\n", pWaveformat->Format.nAvgBytesPerSec);
+	printf("  Block size:%d\n", pWaveformat->Format.nBlockAlign);
+	printf("  Samples per block:%d\n", pWaveformat->Samples.wSamplesPerBlock);
+	printf("  Subformat:{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}\n",
+		pWaveformat->SubFormat.Data1, pWaveformat->SubFormat.Data2, pWaveformat->SubFormat.Data3,
+		pWaveformat->SubFormat.Data4[0], pWaveformat->SubFormat.Data4[1], pWaveformat->SubFormat.Data4[2], pWaveformat->SubFormat.Data4[3],
+		pWaveformat->SubFormat.Data4[4], pWaveformat->SubFormat.Data4[5], pWaveformat->SubFormat.Data4[6], pWaveformat->SubFormat.Data4[7]);
 }

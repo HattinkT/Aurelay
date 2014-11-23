@@ -10,6 +10,7 @@ FileHandler::FileHandler(LPCTSTR sFilename, UINT32 msLatency)
 	m_sFilename = sFilename;
 	m_hFile = INVALID_HANDLE_VALUE;
 	m_bBuffer = NULL;
+	m_dwBufferSize = 0;
 }
 
 FileHandler::~FileHandler()
