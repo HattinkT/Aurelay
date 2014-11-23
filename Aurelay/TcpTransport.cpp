@@ -2,6 +2,7 @@
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+#include <Audioclient.h>
 
 #include "TcpTransport.h"
 
@@ -139,6 +140,8 @@ HRESULT TcpTransport::startCapture()
 
 HRESULT TcpTransport::getAudio(IAudioOut* pOut)
 {
+	HRESULT hr;
+
 	int iResult;
 	int iError;
 
@@ -179,12 +182,13 @@ HRESULT TcpTransport::getAudio(IAudioOut* pOut)
 
 		if (pOut != NULL)
 		{
-			return pOut->putAudio(m_bBuffer, m_dwBufferSize);
+			hr = pOut->putAudio(m_bBuffer, m_dwBufferSize);
+
+			if (hr != AUDCLNT_E_BUFFER_TOO_LARGE)
+			{
+				return hr;
+			}
 		}
-	}
-	else
-	{
-		return S_OK;
 	}
 
 	return S_OK;
