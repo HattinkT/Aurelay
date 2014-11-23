@@ -53,7 +53,7 @@ int App::RunAsServer(_TCHAR* port)
 
 	while (true)
 	{
-		pAudioDev = new AudioDevice();
+		pAudioDev = new AudioDevice(c_msAudioBuffersize);
 		pTcpTransport = new TcpTransport(NULL, port, c_msTransferLatency);
 
 		hr = pTcpTransport->openForPlayback();
@@ -117,7 +117,7 @@ int App::RunAsClient(_TCHAR* port, _TCHAR* server)
 	{
 		printf("Starting TCP client connecting to %S:%S\n", server, port);
 
-		pAudioDev = new AudioDevice();
+		pAudioDev = new AudioDevice(c_msAudioBuffersize);
 		pTcpTransport = new TcpTransport(server, port, c_msTransferLatency);
 
 		hr = pTcpTransport->openForCapture();
@@ -180,8 +180,8 @@ int App::RunWithFile(int argc, _TCHAR* argv[])
 
 	printf("Starting Aurelay\n");
 
-	pAudioDev = new AudioDevice();
-	pFileDev = new FileHandler(L"Y:\\Audio.bin", c_msPollingLength);
+	pAudioDev = new AudioDevice(c_msAudioBuffersize);
+	pFileDev = new FileHandler(L"Y:\\Audio.bin", c_msTransferLatency);
 
 #if 0
 	// Capture to file

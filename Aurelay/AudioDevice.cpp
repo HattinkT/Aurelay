@@ -4,8 +4,10 @@
 
 #include <Functiondiscoverykeys_devpkey.h>
 
-AudioDevice::AudioDevice()
+AudioDevice::AudioDevice(UINT32 msBuffersize)
 {
+	m_msBuffersize = msBuffersize;
+
 	m_pAudioClient = NULL;
 	m_pCaptureClient = NULL;
 	m_pRenderClient = NULL;
@@ -53,7 +55,7 @@ HRESULT AudioDevice::openForCapture()
 				hr = m_pAudioClient->Initialize(
 					AUDCLNT_SHAREMODE_SHARED,
 					AUDCLNT_STREAMFLAGS_LOOPBACK,
-					c_hnsBufferLength,
+					m_msBuffersize * 1000 * 10,
 					0,
 					pwfx,
 					NULL);
@@ -218,7 +220,7 @@ HRESULT AudioDevice::startPlayback()
 	hr = m_pAudioClient->Initialize(
 		AUDCLNT_SHAREMODE_SHARED,
 		0,
-		c_hnsBufferLength,
+		m_msBuffersize * 1000 * 10,
 		0,
 		(WAVEFORMATEX*)&m_audioFormat,
 		NULL);
