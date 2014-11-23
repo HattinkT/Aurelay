@@ -151,13 +151,8 @@ HRESULT AudioDevice::getAudio(IAudioOut* pOut)
 
 		if (hr == S_OK)
 		{
-			if (flags & AUDCLNT_BUFFERFLAGS_SILENT)
+			if (!(flags & AUDCLNT_BUFFERFLAGS_SILENT))
 			{
-				printf(".");
-			}
-			else
-			{
-				printf("*");
 				if (pOut != NULL)
 				{
 					hr = pOut->putAudio(pData, numFramesAvailable * m_audioFormat.Format.nBlockAlign);
@@ -285,8 +280,6 @@ HRESULT AudioDevice::putAudio(const BYTE* pData, UINT32 numBytes)
 
 		if (hr == S_OK)
 		{
-			printf("*");
-
 			if (!m_isPlaying)
 			{
 				hr = m_pAudioClient->Start();
