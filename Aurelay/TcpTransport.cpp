@@ -8,7 +8,7 @@
 
 #pragma comment (lib, "Ws2_32.lib")
 
-TcpTransport::TcpTransport(_TCHAR* server, _TCHAR* port, UINT32 msLatency)
+TcpTransport::TcpTransport(_TCHAR* server, _TCHAR* port, UINT32 msLatency, UINT32 msSoundLatency)
 {
 	int iResult;
 
@@ -17,6 +17,7 @@ TcpTransport::TcpTransport(_TCHAR* server, _TCHAR* port, UINT32 msLatency)
 	m_server = server;
 	m_port = port;
 	m_msLatency = msLatency;
+	m_msSoundLatency = msSoundLatency;
 	m_bBuffer = NULL;
 	m_dwBufferSize = 0;
 	m_dwBufferFilled = 0;
@@ -131,6 +132,25 @@ HRESULT TcpTransport::startCapture()
 
 	if (hr == S_OK)
 	{
+		m_dwBufferSize = ((m_audioFormat.Format.nSamplesPerSec * m_msSoundLatency) / 1000);
+
+		if (m_audioFormat.Samples.wSamplesPerBlock > 0)
+		{
+			m_dwBufferSize = (m_dwBufferSize + m_audioFormat.Samples.wSamplesPerBlock - 1) / m_audioFormat.Samples.wSamplesPerBlock;
+			m_dwBufferSize *= m_audioFormat.Samples.wSamplesPerBlock;
+		}
+
+		m_dwBufferSize *= m_audioFormat.Format.nBlockAlign;
+
+		if (m_dwBufferSize < 1)
+		{
+			printf("Failed to estimate buffersize\n");
+			return E_FAIL;
+		}
+
+
+		printf("Audio buffer size: %d\n", m_dwBufferSize);
+
 		m_bBuffer = new BYTE[m_dwBufferSize];
 		m_dwBufferFilled = 0;
 	}
@@ -150,43 +170,48 @@ HRESULT TcpTransport::getAudio(IAudioOut* pOut)
 		return E_FAIL;
 	}
 
-	iResult = recv(m_skClient, (char *)(m_bBuffer + m_dwBufferFilled), m_dwBufferSize - m_dwBufferFilled, 0);
+	iResult = SOCKET_ERROR;
 
-	if (iResult == SOCKET_ERROR)
+	while (iResult != 0)
 	{
-		iError = WSAGetLastError();
+		iResult = recv(m_skClient, (char *)(m_bBuffer + m_dwBufferFilled), m_dwBufferSize - m_dwBufferFilled, 0);
 
-		if (iError != WSAEWOULDBLOCK)
+		if (iResult == SOCKET_ERROR)
+		{
+			iError = WSAGetLastError();
+
+			if (iError != WSAEWOULDBLOCK)
+			{
+				printf("Client connection closed\n");
+
+				return E_FAIL;
+			}
+			else
+			{
+				iResult = 0;
+			}
+		}
+		else if (iResult == 0)
 		{
 			printf("Client connection closed\n");
 
 			return E_FAIL;
 		}
-		else
+
+		m_dwBufferFilled += iResult;
+
+		if (m_dwBufferFilled >= m_dwBufferSize)
 		{
-			iResult = 0;
-		}
-	}
-	else if (iResult == 0)
-	{
-		printf("Client connection closed\n");
+			m_dwBufferFilled = 0;
 
-		return E_FAIL;
-	}
-
-	m_dwBufferFilled += iResult;
-
-	if (m_dwBufferFilled >= m_dwBufferSize)
-	{
-		m_dwBufferFilled = 0;
-
-		if (pOut != NULL)
-		{
-			hr = pOut->putAudio(m_bBuffer, m_dwBufferSize);
-
-			if (hr != AUDCLNT_E_BUFFER_TOO_LARGE)
+			if (pOut != NULL)
 			{
-				return hr;
+				hr = pOut->putAudio(m_bBuffer, m_dwBufferSize);
+
+				if (hr != AUDCLNT_E_BUFFER_TOO_LARGE)
+				{
+					return hr;
+				}
 			}
 		}
 	}
@@ -290,6 +315,7 @@ HRESULT TcpTransport::startPlayback()
 {
 	int iResult;
 
+	DWORD dwBufferSize;
 	u_long iMode;
 
 	iMode = 1;
@@ -302,25 +328,25 @@ HRESULT TcpTransport::startPlayback()
 		return E_FAIL;
 	}
 
-	m_dwBufferSize = ((m_audioFormat.Format.nSamplesPerSec * m_msLatency) / 1000);
+	dwBufferSize = ((m_audioFormat.Format.nSamplesPerSec * m_msLatency) / 3000); // 1000 * 3 because of empiric testing i found out that 3 times the buffer can be sent
 
 	if (m_audioFormat.Samples.wSamplesPerBlock > 0)
 	{
-		m_dwBufferSize = (m_dwBufferSize + m_audioFormat.Samples.wSamplesPerBlock - 1) / m_audioFormat.Samples.wSamplesPerBlock;
-		m_dwBufferSize *= m_audioFormat.Samples.wSamplesPerBlock;
+		dwBufferSize = (dwBufferSize + m_audioFormat.Samples.wSamplesPerBlock - 1) / m_audioFormat.Samples.wSamplesPerBlock;
+		dwBufferSize *= m_audioFormat.Samples.wSamplesPerBlock;
 	}
 
-	m_dwBufferSize *= m_audioFormat.Format.nBlockAlign;
+	dwBufferSize *= m_audioFormat.Format.nBlockAlign;
 
-	if (m_dwBufferSize < 1)
+	if (dwBufferSize < 1)
 	{
 		printf("Failed to estimate buffersize\n");
 		return E_FAIL;
 	}
 
-	printf("Socket buffer size: %d\n", m_dwBufferSize);
+	printf("Socket buffer size: %d\n", dwBufferSize);
 
-	iResult = setsockopt(m_skClient, SOL_SOCKET, SO_SNDBUF, (char *)&m_dwBufferSize, sizeof(m_dwBufferSize));
+	iResult = setsockopt(m_skClient, SOL_SOCKET, SO_SNDBUF, (char *)&dwBufferSize, sizeof(dwBufferSize));
 
 	if (iResult == SOCKET_ERROR)
 	{
@@ -329,7 +355,7 @@ HRESULT TcpTransport::startPlayback()
 		return E_FAIL;
 	}
 
-	iResult = setsockopt(m_skClient, SOL_SOCKET, SO_RCVBUF, (char *)&m_dwBufferSize, sizeof(m_dwBufferSize));
+	iResult = setsockopt(m_skClient, SOL_SOCKET, SO_RCVBUF, (char *)&dwBufferSize, sizeof(dwBufferSize));
 
 	if (iResult == SOCKET_ERROR)
 	{

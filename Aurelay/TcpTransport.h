@@ -7,7 +7,7 @@
 class TcpTransport : public IAudioIn, public IAudioOut
 {
 public:
-	TcpTransport(_TCHAR* server, _TCHAR* port, UINT32 msLatency);
+	TcpTransport(_TCHAR* server, _TCHAR* port, UINT32 msLatency, UINT32 msSoundLatency);
 	~TcpTransport();
 
 	virtual HRESULT openForCapture();
@@ -26,6 +26,7 @@ private:
 	_TCHAR* m_server;
 	_TCHAR* m_port;
 	UINT32 m_msLatency;
+	UINT32 m_msSoundLatency;
 	SOCKET m_skClient;
 
 	WAVEFORMATEXTENSIBLE m_audioFormat;
