@@ -28,6 +28,7 @@ int App::Run(int argc, _TCHAR* argv[])
 
 	printf("Starting Aurelay\n");
 
+	SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 	if (argc < 3)
 	{
 		// Server mode
